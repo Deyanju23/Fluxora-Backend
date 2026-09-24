@@ -253,7 +253,7 @@ async function clientQuery<T extends QueryResultRow = QueryResultRow>(
   sql: string,
   params?: unknown[],
 ): Promise<{ rows: T[]; rowCount?: number | null }> {
-  return client.query<T>(sql, params);
+  return (await client.query(sql, params)) as { rows: T[]; rowCount?: number | null };
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -508,17 +508,19 @@ function alertPartitionCreationFailure(
 // ── Pre-write coverage guard ──────────────────────────────────────────────────
 
 /**
- * Minimal query surface required by {@link ensurePartitionCoverage}.
+ * Minimal query surface required by {@link ensurePartitionCoverage} and by the
+ * internal helpers shared with the job.
  *
- * Structurally identical to `PgClientLike` in `src/indexer/store.ts`, so the
- * store can pass its client through without a cast. Satisfied by a
- * `pg.PoolClient`, a `pg.Pool`, and by the mock clients used in tests.
+ * Deliberately non-generic (and `unknown`-typed rows) so that every query
+ * surface in this codebase is assignable to it without a cast: `pg.PoolClient`
+ * and `pg.Pool` from the driver, `PgClientLike` from `src/indexer/store.ts`, and
+ * the mock clients used in tests. Rows are narrowed at each call site instead.
  */
 export interface PartitionQueryable {
-  query<T = unknown>(
+  query(
     text: string,
     values?: unknown[],
-  ): Promise<{ rows: T[]; rowCount?: number | null }>;
+  ): Promise<{ rows: unknown[]; rowCount?: number | null }>;
 }
 
 /** One row of the coverage probe: whether the parent is managed and whether one required partition exists. */
@@ -638,8 +640,8 @@ export async function ensurePartitionCoverage(
 
   let rows: CoverageProbeRow[];
   try {
-    const res = await client.query<CoverageProbeRow>(COVERAGE_PROBE_SQL, [table, required]);
-    rows = Array.isArray(res?.rows) ? res.rows : [];
+    const res = await client.query(COVERAGE_PROBE_SQL, [table, required]);
+    rows = Array.isArray(res?.rows) ? (res.rows as CoverageProbeRow[]) : [];
   } catch (err) {
     // Fail open: the write path keeps its previous behaviour (the insert will
     // surface the problem if there really is one).

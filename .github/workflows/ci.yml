@@ -38,6 +38,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          # `scripts/lint-changed-files.mjs` diffs `origin/main...HEAD`, which
+          # requires the base branch ref. The default (fetch-depth: 1) only
+          # fetches the PR's own commit, so the script could never resolve
+          # `origin/main` and the job failed before running ESLint at all.
+          fetch-depth: 0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -71,7 +77,11 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pgisready
+          # `pg_isready` — the previous value (`pgisready`) is not an existing
+          # binary, so the healthcheck always failed and GitHub reported
+          # "Failed to initialize container postgres:15-alpine" before any test
+          # ran.
+          --health-cmd "pg_isready -U test_user -d indexer_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
