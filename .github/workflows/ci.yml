@@ -76,11 +76,12 @@ jobs:
           POSTGRES_PASSWORD: test_password
         ports:
           - 5432:5432
+        # `pg_isready` — the previous value (`pgisready`) is not an existing
+        # binary, so the healthcheck always failed and GitHub reported
+        # "Failed to initialize container postgres:15-alpine" before any test
+        # ran. Keep comments out of `options`: YAML block scalars pass them
+        # through to `docker create` as arguments.
         options: >-
-          # `pg_isready` — the previous value (`pgisready`) is not an existing
-          # binary, so the healthcheck always failed and GitHub reported
-          # "Failed to initialize container postgres:15-alpine" before any test
-          # ran.
           --health-cmd "pg_isready -U test_user -d indexer_test"
           --health-interval 10s
           --health-timeout 5s

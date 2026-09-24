@@ -16,7 +16,7 @@
  * and removes the ledger_hash column definition.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { ContractEventRecord } from '../src/indexer/types.js';
 import { PostgresContractEventStore } from '../src/indexer/store.js';
 
